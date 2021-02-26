@@ -1,4 +1,5 @@
+/venv/
+*.pyc
 /test.py
 /dummy_data.py
 /data_handler.py
-/venv/

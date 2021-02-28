@@ -55,6 +55,7 @@ def read_machine_state(mach_num, date_str):
     """ Return machine states data, which is read from server. """
     if mach_num and date_str:
         df = pd.read_csv(join_paths([APP_PATH, 'assets', mach_num, 'state', f'state_{date_str}.csv']))
+        print(df.head(5))
         return df
     # Default dataframe with 0 values.
     return pd.DataFrame(
@@ -67,6 +68,7 @@ def read_machine_state(mach_num, date_str):
 def read_machine_order(mach_num, date_str):
     """ Return machine price data, which is read from server. """
     df = pd.read_csv(join_paths([APP_PATH, 'assets', mach_num, 'order', f'order_{date_str}.csv']))
+    print(df.head(5))
     return df
 
 

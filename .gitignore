@@ -1,5 +1,7 @@
-/venv/
+venv
 *.pyc
+.DS_Store
+.env
 /test.py
 /dummy_data.py
 /data_handler.py

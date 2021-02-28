@@ -276,7 +276,7 @@ external_stylesheets = [
 # -------------------------------------------------------------------------------
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 server = app.server
-app.scripts.config.serve_locally = True
+# app.scripts.config.serve_locally = True
 
 app.title = "Coffee Machine Espresso"
 app.layout = html.Div([

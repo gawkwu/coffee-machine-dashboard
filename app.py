@@ -102,8 +102,8 @@ def build_internal_content():
             interval=update_interval * 1000,
             n_intervals=0
         ),
-        dcc.Store(id='mach-sales-data', storage_type='memory'),
-        dcc.Store(id='mach-state-data', storage_type='memory')
+        dcc.Store(id='mach-sales-data', storage_type='session'),
+        dcc.Store(id='mach-state-data', storage_type='session')
     ], id='internal-content')
 
 
@@ -462,5 +462,4 @@ def test():
 
 
 if __name__ == '__main__':
-    # app.run_server(debug=True)
-    test()
+    app.run_server(debug=True)

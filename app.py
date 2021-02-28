@@ -37,7 +37,7 @@ APP_PATH = str(pathlib.Path(__file__).parent.resolve())
 mach_df = pd.read_csv(os.path.join(APP_PATH, os.path.join('assets', 'machines.csv')))
 menu = Menu()
 date_stamp = date(2021, 1, 1).isoformat()
-update_interval = 2  # sec
+update_interval = 1  # sec
 
 
 # -------------------------------------------------------------------------------
@@ -100,10 +100,11 @@ def build_internal_content():
         dcc.Interval(
             id='interval-component',
             interval=update_interval * 1000,
-            n_intervals=0
+            n_intervals=0,
+            disabled=True
         ),
-        dcc.Store(id='mach-sales-data', storage_type='memory'),
-        dcc.Store(id='mach-state-data', storage_type='memory')
+        dcc.Store(id='mach-sales-data', storage_type='session'),
+        dcc.Store(id='mach-state-data', storage_type='session')
     ], id='internal-content')
 
 
@@ -285,6 +286,7 @@ app.layout = html.Div([
     # Navigation bar
     html.Div([
         build_filter(),
+        html.Button('Start', id='start-btn'),
         build_clock()
     ], className='navbar'),
 
@@ -308,17 +310,29 @@ app.layout = html.Div([
             build_card('Gauges', html.Div(daq_dict['gauge'], className='gauge'))
         ], className='right-col'),
     ], id='content'),
-
-    # Footer
-    html.Div([
-        html.H4("Footer Content"),
-    ], className='footer')
 ])
 
 
 # -------------------------------------------------------------------------------
 # Callbacks
 # -------------------------------------------------------------------------------
+@app.callback(
+    Output('start-btn', 'children'),
+    Output('interval-component', 'disabled'),
+    Input('start-btn', 'n_clicks'),
+    State('start-btn', 'children'),
+    State('interval-component', 'disabled')
+)
+def start_app(start_btn, start_btn_val, disabled):
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    if 'start-btn' in changed_id:
+        start_btn_val = 'Stop' if start_btn_val == 'Start' else 'Start'
+        disabled = not disabled
+        return start_btn_val, disabled
+    else:
+        raise PreventUpdate
+
+
 # On change shop filter.
 @app.callback(
     Output('mach-flt', 'options'),
@@ -437,7 +451,7 @@ def update_machine_graphs(n, clock_val, data):
 # At interval time.
 @app.callback(
     Output('clock', 'value'),
-    Output('interval-component', 'disabled'),
+    # Output('interval-component', 'disabled'),
     Input('interval-component', 'n_intervals'),
 )
 def update_pseudo_time(n):
@@ -451,8 +465,8 @@ def update_pseudo_time(n):
     # Debug/Demo version, boost time flow (x10)
     h = 13 if n > 72 else (n // 6)
     m = 0 if n > 72 else ((n * 10) % 60)
-    disabled = True if h > 12 else False
-    return time(9 + h, 0 + m).strftime('%H:%M:%S'), disabled
+    # disabled = True if h > 12 else False
+    return time(9 + h, 0 + m).strftime('%H:%M:%S')  # , disabled
 
 
 if __name__ == '__main__':

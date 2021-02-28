@@ -37,7 +37,7 @@ APP_PATH = str(pathlib.Path(__file__).parent.resolve())
 mach_df = pd.read_csv(os.path.join(APP_PATH, os.path.join('assets', 'machines.csv')))
 menu = Menu()
 date_stamp = date(2021, 1, 1).isoformat()
-update_interval = 3  # sec
+update_interval = 2  # sec
 
 
 # -------------------------------------------------------------------------------
@@ -276,7 +276,7 @@ external_stylesheets = [
 # -------------------------------------------------------------------------------
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 server = app.server
-# app.scripts.config.serve_locally = True
+app.config.suppress_callback_exceptions = True
 
 app.title = "Coffee Machine Espresso"
 app.layout = html.Div([
@@ -456,4 +456,4 @@ def update_pseudo_time(n):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server()

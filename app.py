@@ -37,7 +37,7 @@ APP_PATH = str(pathlib.Path(__file__).parent.resolve())
 mach_df = pd.read_csv(os.path.join(APP_PATH, os.path.join('assets', 'machines.csv')))
 menu = Menu()
 date_stamp = date(2021, 1, 1).isoformat()
-update_interval = 1  # sec
+update_interval = 3  # sec
 
 
 # -------------------------------------------------------------------------------
@@ -449,16 +449,10 @@ def update_pseudo_time(n):
     # return time(9+h, 0+m).strftime('%H:%M:%S'), disabled
 
     # Debug/Demo version, boost time flow (x10)
-    # h, m = (n // 6), (n * 10) % 60
-    h = 2 if n > 12 else (n // 6)
-    m = 0 if n > 12 else ((n * 10) % 60)
-    disabled = True if h > 2 else False
-    return time(20 + h, 0 + m).strftime('%H:%M:%S'), disabled
-
-
-def test():
-    path = join_paths([APP_PATH, 'assets', 'mach_num', 'state', 'state_2021-01-01.csv'])
-    print(path)
+    h = 13 if n > 72 else (n // 6)
+    m = 0 if n > 72 else ((n * 10) % 60)
+    disabled = True if h > 12 else False
+    return time(9 + h, 0 + m).strftime('%H:%M:%S'), disabled
 
 
 if __name__ == '__main__':

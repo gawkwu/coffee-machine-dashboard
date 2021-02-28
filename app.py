@@ -3,7 +3,6 @@
 # === Todo list ===
 # Graph: sales performance
 # Graph: count of consumed supplies
-# Use os.path to reference file path.
 # Make a flask server, allow others can view the website by  their browser.
 # Make summary page, should be a overview for all machines and products.
 # Make alert tool, to inform user real-time problem.
@@ -13,6 +12,8 @@
 try:
     # built-in
     from datetime import date, time
+    import os
+    import pathlib
     import sys
     # extend lib
     import numpy as np
@@ -31,7 +32,9 @@ except ImportError as err:
     print(err)
     sys.exit(2)
 
-mach_df = pd.read_csv('./assets/machines.csv')
+
+APP_PATH = str(pathlib.Path(__file__).parent.resolve())
+mach_df = pd.read_csv(os.path.join(APP_PATH, os.path.join('assets', 'machines.csv')))
 menu = Menu()
 date_stamp = date(2021, 1, 1).isoformat()
 update_interval = 1  # sec
@@ -40,10 +43,18 @@ update_interval = 1  # sec
 # -------------------------------------------------------------------------------
 # Functions
 # -------------------------------------------------------------------------------
+def join_paths(paths):
+    """ Return a path string, which combine from given paths. """
+    path = ''
+    for p in paths:
+        path = os.path.join(path, p)
+    return path
+
+
 def read_machine_state(mach_num, date_str):
     """ Return machine states data, which is read from server. """
     if mach_num and date_str:
-        df = pd.read_csv(f'./assets/{mach_num}/state/state_{date_str}.csv')
+        df = pd.read_csv(join_paths([APP_PATH, 'assets', mach_num, 'state', f'state_{date_str}.csv']))
         return df
     # Default dataframe with 0 values.
     return pd.DataFrame(
@@ -55,7 +66,7 @@ def read_machine_state(mach_num, date_str):
 
 def read_machine_order(mach_num, date_str):
     """ Return machine price data, which is read from server. """
-    df = pd.read_csv(f'./assets/{mach_num}/order/order_{date_str}.csv')
+    df = pd.read_csv(join_paths([APP_PATH, 'assets', mach_num, 'order', f'order_{date_str}.csv']))
     return df
 
 
@@ -445,5 +456,11 @@ def update_pseudo_time(n):
     return time(20 + h, 0 + m).strftime('%H:%M:%S'), disabled
 
 
+def test():
+    path = join_paths([APP_PATH, 'assets', 'mach_num', 'state', 'state_2021-01-01.csv'])
+    print(path)
+
+
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    # app.run_server(debug=True)
+    test()

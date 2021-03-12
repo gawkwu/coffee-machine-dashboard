@@ -36,18 +36,18 @@ class SQLiteConnector:
 
 def connect(table_name, index_col=None, columns=None):
     db_url = os.environ['DATABASE_URL']
-    conn = None
+    conn, result = None, None
     try:
         print('Connecting to PostgreSQL database server...')
         conn = psycopg2.connect(db_url, sslmode='require')
         cur = conn.cursor()
         query = f'SELECT {columns} FROM {table_name}'
         cur.execute(query)
-        # index_col = cur.fetchone().keys() if index_col is None else index_col
-        # result = pd.DataFrame(data=cur.fetchall(), columns=index_col)
-        print('PostgreSQL database version:')
-        db_version = cur.fetchone()
-        print(db_version)
+        index_col = cur.fetchone().keys() if index_col is None else index_col
+        result = pd.DataFrame(data=cur.fetchall(), columns=index_col)
+        # print('PostgreSQL database version:')
+        # db_version = cur.fetchone()
+        # print(db_version)
         cur.close()
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
@@ -55,4 +55,4 @@ def connect(table_name, index_col=None, columns=None):
         if conn is not None:
             conn.close()
             print('Database connection closed.')
-        # return result
+        return result

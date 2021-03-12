@@ -7,9 +7,9 @@ from enum import Enum, auto
 
 class Menu:
     class Choices(Enum):
-        ESPRESSO = auto()
-        LATTE = auto()
-        CAPPUCCINO = auto()
+        ESPRESSO = 'Espresso'
+        LATTE = 'Latte'
+        CAPPUCCINO = 'Cappuccino'
 
     def __init__(self):
         self.recipes = {

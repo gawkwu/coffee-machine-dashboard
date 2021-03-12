@@ -1,7 +1,6 @@
 # encoding=utf-8
 
 # === Todo list ===
-# Graph: sales performance
 # Graph: count of consumed supplies
 # Make a flask server, allow others can view the website by  their browser.
 # Make summary page, should be a overview for all machines and products.
@@ -11,9 +10,8 @@
 
 try:
     # built-in
-    from datetime import date, time
+    from datetime import datetime, date, time
     import os
-    import pathlib
     import sys
     # extend lib
     import numpy as np
@@ -28,16 +26,19 @@ try:
     import plotly.express as px
     # local lib
     from coffeemachine import Menu
+    from connector import SQLiteConnector
 except ImportError as err:
     print(err)
     sys.exit(2)
 
-
-APP_PATH = str(pathlib.Path(__file__).parent.resolve())
-mach_df = pd.read_csv(os.path.join(APP_PATH, os.path.join('assets', 'machines.csv')))
+# -------------------------------------------------------------------------------
+# Global variables and constants
+# -------------------------------------------------------------------------------
+APP_PATH = os.path.dirname(os.path.abspath(__file__))
+UPDATE_INTERVAL = 1  # sec
+today = date(2021, 1, 1)
+business_hour = {'open': time(9, 0, 0), 'close': time(21, 0, 0)}
 menu = Menu()
-date_stamp = date(2021, 1, 1).isoformat()
-update_interval = 1  # sec
 
 
 # -------------------------------------------------------------------------------
@@ -51,32 +52,46 @@ def join_paths(paths):
     return path
 
 
-def read_machine_state(mach_num, date_str):
-    """ Return machine states data, which is read from server. """
-    if mach_num and date_str:
-        df = pd.read_csv(join_paths([APP_PATH, 'assets', mach_num, 'state', f'state_{date_str}.csv']))
-        print(df.head(5))
-        return df
-    # Default dataframe with 0 values.
-    return pd.DataFrame(
-        columns=['date', 'time', 'total_count', 'today_count', 'tank_beans',
-                 'tank_water', 'tank_milk', 'barometer', 'thermometer'],
-        data=[['2021-01-01', '00:00:00', 0, 0, 0, 0, 0, 0, 0]]
-    )
+def init_coffee_machine_data():
+    result = dict()
+    connector = SQLiteConnector('coffee-machine-data.db')
+
+    for key, table in [('order', 'coffee_machine_order'), ('state', 'coffee_machine_state')]:
+        df = connector.read_sql_table(table)
+        df['datetime'] = pd.to_datetime(df['date'] + ' ' + df['time'])
+        df = df.drop(['date', 'time'], axis=1)
+        result[key] = df
+
+    return result
 
 
-def read_machine_order(mach_num, date_str):
-    """ Return machine price data, which is read from server. """
-    df = pd.read_csv(join_paths([APP_PATH, 'assets', mach_num, 'order', f'order_{date_str}.csv']))
-    print(df.head(5))
-    return df
+coffee_machine_data = init_coffee_machine_data()
 
 
-def get_machine_options(shop=None):
-    """ Return a list of machines, which is filtered by given shop. """
-    if shop:
-        return mach_df[mach_df['shop'] == shop]['machine'].unique()
-    return mach_df['machine'].unique()
+def read_machine_df(key, mach_num, start_dt, end_dt):
+    if key not in list(coffee_machine_data):
+        raise KeyError(f"No dataframe named {key} in coffee-machine-data.")
+
+    df = coffee_machine_data[key]
+    if mach_num:
+        mask = (df['mach_num'] == mach_num) & (df['datetime'] >= start_dt) & (df['datetime'] < end_dt)
+        return df.loc[mask]
+    # Default dataframes.
+    if key == 'state':
+        return pd.DataFrame(columns=df.columns, data=[['2021-01-01', '00:00:00', 0, 0, 0, 0, 0, 0, 0]])
+    elif key == 'order':
+        return pd.DataFrame(columns=df.columns, data=[['2021-01-01', '00:00:00', '', '', '']])
+
+
+def create_machine_options():
+    """ Return a dict of machines, use shop name as key to get machines belong to it. """
+    result = {None: []}
+    df = coffee_machine_data['order']
+    for shop in df['shop'].unique():
+        machines = list(df[df['shop'] == shop]['mach_num'].unique())
+        result[shop] = machines
+        result[None].extend(machines)
+    return result
 
 
 def reform_options(options):
@@ -85,9 +100,9 @@ def reform_options(options):
     return [{'label': i, 'value': i} for i in options]
 
 
-shops = mach_df['shop'].unique()
-option_map = {shop: reform_options(get_machine_options(shop)) for shop in shops}
-option_map[None] = reform_options(get_machine_options())
+mach_in_shop = create_machine_options()  # Use 'None' as key will return all machines.
+SHOP_OPTIONS = reform_options([i for i in mach_in_shop if i is not None])
+MACHINE_OPTIONS = {shop: reform_options(mach_in_shop[shop]) for shop in list(mach_in_shop)}
 
 
 # HTML component generators
@@ -101,11 +116,10 @@ def build_internal_content():
     return html.Div([
         dcc.Interval(
             id='interval-component',
-            interval=update_interval * 1000,
+            interval=UPDATE_INTERVAL * 1000,
             n_intervals=0,
-            disabled=True
         ),
-        dcc.Store(id='mach-sales-data', storage_type='session'),
+        dcc.Store(id='mach-order-data', storage_type='session'),
         dcc.Store(id='mach-state-data', storage_type='session')
     ], id='internal-content')
 
@@ -116,13 +130,13 @@ def build_filter():
         html.Div(
             dcc.Dropdown(
                 id='shop-flt',
-                options=reform_options(mach_df['shop'].unique()),
+                options=SHOP_OPTIONS,
                 multi=True
             ), className='navbar-1-item'),
         html.Div([
             dcc.Dropdown(
                 id='mach-flt',
-                options=reform_options(mach_df['machine'].unique()),
+                options=MACHINE_OPTIONS[None],
                 clearable=False
             ),
             html.Div([
@@ -138,7 +152,7 @@ def build_clock():
     (Apply in demonstration only) """
     return html.Div([
         daq.LEDDisplay(id='clock', label='Pseudo Clock', value='00:00:00',
-                       size='32', color='#333333')
+                       size=32, color='#333333')
     ], className='navbar-2')
 
 
@@ -151,81 +165,81 @@ def build_card(title, content):
 
 
 # Build graphs
-def get_flavors_at_hour(df, clock):
-    """ Return a count result of each flavor. """
-    dff = df.loc[:, ['time', 'flavor']]
-    clock_str = str(clock).rjust(2, '0')
-    mask = dff['time'].str.startswith(clock_str)
-    result = dff[mask].groupby('flavor').count()
-    result = result.reset_index()
-    result = result.rename(columns={'time': 'amount'})
-    result['time_period'] = clock
-    return result
+def get_sales_df(df=None, period=(9, 21)):
+    if df is None:  # Return a default dataframe.
+        df = pd.DataFrame()
+        for choice in menu.Choices:
+            dff = pd.DataFrame({
+                'time_period': np.arange(period[0], period[1]+1),
+                'flavor': choice.name.capitalize(),
+                'amount': 0,
+                'sales': 0
+            })
+            df = pd.concat([df, dff])
+        return df
 
-
-def create_mach_sales_data():
-    """ Return a empty dataframe of sales performance. """
-    df = pd.DataFrame()
+    df['time_period'] = df['datetime'].apply(lambda t: t.hour)
+    dff = df.drop(['mach_num', 'shop'], axis=1)
+    dff = dff.groupby(['time_period', 'flavor']).count()
+    dff = dff.rename(columns={'datetime': 'amount'}).reset_index()
+    # Except rows in given period, set amount to 0.
+    mask = (dff['time_period'] >= period[0]) & (dff['time_period'] < period[1])
+    dff.loc[~mask, 'amount'] = 0
     for choice in menu.Choices:
-        dff = pd.DataFrame({
-            'time_period': np.arange(9, 22, 1),
-            'flavor': choice.name.capitalize(),
-            'price': menu.cost[choice],
-            'amount': 0,
-            'sales': 0
-        })
-        df = pd.concat([df, dff])
-    return df
-
-
-def update_mach_sales_data(order, start, end):
-    """ Return a updated sales performance data. """
-    df = create_mach_sales_data()
-    for clock in range(start, end):
-        df = pd.merge(df, get_flavors_at_hour(order, clock),
-                      how='left', on=['time_period', 'flavor'],
-                      suffixes=('', '_y'), copy=False)
-        df['amount'] += df['amount_y'].fillna(0).astype('int64')
-        df = df.drop(['amount_y'], axis=1)
-    df['sales'] = df['price'] * df['amount']
-    return df
-
-
-def get_flavor_count(sales_data):
-    """ Return a dict of sales of flavor. """
-    result = {}
-    for choice in menu.Choices:
-        choice_name = choice.name.capitalize()
-        mask = sales_data['flavor'] == choice_name
-        result[choice_name] = sales_data[mask]['amount'].sum()
-    return result
+        mask = dff['flavor'] == choice.value
+        dff.loc[mask, ['sales']] = dff['amount'] * menu.cost[choice]
+    return dff.loc[dff['time_period'] < period[1]]
 
 
 def get_time_flavor_graph(df):
     """ Return a figure that shows the flavor sales per hour. """
-    return px.bar(df, x='time_period', y='amount', color='flavor',
-                  range_y=[0, 150])
+    fig = px.bar(df, x='time_period', y='amount', color='flavor', range_x=[6, 24], range_y=[0, 150],
+                 labels={'time_period': 'Time Period', 'amount': 'Amount', 'flavor': 'Flavors'},
+                 height=400, template='simple_white')
+    fig.update_xaxes(dtick=3, showgrid=True)
+    return fig
 
 
-def get_sales_count(sales_data):
-    """ Return a dict of sales performance. """
-    data = sales_data.loc[:, ('time_period', 'sales')]
-    data = data.groupby('time_period').sum()
-    data['sales'] = data['sales'].cumsum()
-    data = data.reset_index()
-    return data
-
-
-def get_sales_perf_graph(df):
+def get_sales_perf_graph(df, cum=True):
     """ Return a figure that shows the sales performance. """
-    return px.line(df, x='time_period', y='sales', range_y=[0, 10000])
+    df = df.groupby(['time_period']).sum()
+    df = df.reset_index().drop(['amount'], axis=1)
+    if cum:
+        mask = (df['sales'] > 0)
+        df.loc[mask, ['sales']] = df.loc[mask, ['sales']].cumsum()
+    range_x = [6, 24]
+    range_y = [-100, 5000]
+    fig = px.line(df, x='time_period', y='sales', range_x=range_x, range_y=range_y,
+                  labels={'time_period': 'Time Period', 'sales': 'Sales'},
+                  height=400, template='simple_white')
+    fig.update_xaxes(dtick=3, showgrid=True)
+    fig.update_yaxes(showgrid=True)
+    fig.update_traces(mode='markers+lines')
+    # Add text and line for sales target
+    fig.add_annotation(text='Target', x=range_x[1], y=3000, showarrow=False, bgcolor='salmon')
+    fig.add_shape(
+        type='line', line_color='salmon', line_width=3, opacity=1, line_dash='dot',
+        x0=range_x[0], x1=range_x[1], y0=3000, y1=3000
+    )
+    # Add text and line for shop's open and close time
+    fig.add_annotation(text='Open', x=business_hour['open'].hour, y=range_y[1], showarrow=False)
+    fig.add_shape(
+        type='line', line_color='gray', line_width=2, opacity=.5,
+        x0=business_hour['open'].hour, x1=business_hour['open'].hour, y0=range_y[0], y1=(range_y[1]-200)
+    )
+    fig.add_annotation(text='Close', x=business_hour['close'].hour, y=range_y[1], showarrow=False)
+    fig.add_shape(
+        type='line', line_color='gray', line_width=2, opacity=.5,
+        x0=business_hour['close'].hour, x1=business_hour['close'].hour, y0=range_y[0], y1=(range_y[1]-200)
+    )
+    return fig
 
 
 dcc_graphs = {
     'time_flavor': dcc.Graph(id='fig-time-flavor',
-                             figure=get_time_flavor_graph(create_mach_sales_data())),
+                             figure=get_time_flavor_graph(get_sales_df())),
     'sales_perf': dcc.Graph(id='fig-sales-perf',
-                            figure=get_sales_perf_graph(create_mach_sales_data()))
+                            figure=get_sales_perf_graph(get_sales_df()))
 }
 
 daq_dict = {
@@ -240,11 +254,12 @@ daq_dict = {
         daq.LEDDisplay(id='led-cappuccino', label='Cappuccino', value=0)
     ],
     'tank': [
-        daq.Tank(id='tank-water', label='Water', min=0, max=1600, value=0),
+        daq.Tank(id='tank-water', label='Water', min=0, max=1600, value=0,
+                 scale={'interval': 100, 'labelInterval': 4}),
         daq.Tank(id='tank-milk', label='Milk', min=0, max=1200, value=0,
-                 color='#ffbf80'),
+                 scale={'interval': 100, 'labelInterval': 3}, color='#ffbf80'),
         daq.Tank(id='tank-beans', label='Beans', min=0, max=1000, value=0,
-                 color='#b33c00')
+                 scale={'interval': 100, 'labelInterval': 2}, color='#b33c00')
     ],
     'gauge': [
         daq.Gauge(id='gauge-bar', label='Barometer', min=0, max=30, value=0,
@@ -318,21 +333,25 @@ app.layout = html.Div([
 # -------------------------------------------------------------------------------
 # Callbacks
 # -------------------------------------------------------------------------------
+def is_changed(html_id_):
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    return html_id_ in changed_id
+
+
+def is_on_the_hour(time_):
+    return (time_.minute + time_.second) == 0
+
+
 @app.callback(
     Output('start-btn', 'children'),
     Output('interval-component', 'disabled'),
     Input('start-btn', 'n_clicks'),
-    State('start-btn', 'children'),
     State('interval-component', 'disabled')
 )
-def start_app(start_btn, start_btn_val, disabled):
-    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
-    if 'start-btn' in changed_id:
-        start_btn_val = 'Stop' if start_btn_val == 'Start' else 'Start'
-        disabled = not disabled
-        return start_btn_val, disabled
-    else:
-        raise PreventUpdate
+def start_app(start_btn_n, disabled):
+    if start_btn_n == 0:
+        return 'Start', True
+    return 'Stop' if disabled else 'Start', not disabled
 
 
 # On change shop filter.
@@ -345,9 +364,9 @@ def update_machine_options(shop_list):
     if shop_list:
         opt = []
         for shop in shop_list:
-            opt.extend(option_map[shop])
+            opt.extend(MACHINE_OPTIONS[shop])
         return opt
-    return option_map[None]
+    return MACHINE_OPTIONS[None]
 
 
 # On click button 'previous' or 'next'.
@@ -356,98 +375,95 @@ def update_machine_options(shop_list):
     Input('mach-prev-btn', 'n_clicks'),
     Input('mach-next-btn', 'n_clicks'),
     Input('mach-flt', 'options'),
-    State('mach-flt', 'value')
+    Input('mach-flt', 'value')
 )
 def update_machine_value(prev_btn, next_btn, mach_opt, mach_val):
     """ Return new machine filter value, when click prev or next button. """
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     index = next((i for i, item in enumerate(mach_opt)
                   if item['label'] == mach_val), 0)
+    if mach_val is None:
+        return [mach_opt[0]['label']] * 2
     if 'mach-prev-btn' in changed_id and index > 0:
         return [mach_opt[index - 1]['label']] * 2
     elif 'mach-next-btn' in changed_id and index < (len(mach_opt) - 1):
         return [mach_opt[index + 1]['label']] * 2
-    return [mach_opt[0]['label']] * 2
+    else:
+        return [mach_opt[index]['label']] * 2
 
 
-# On change machine filter value.
-@app.callback(
-    Output('mach-state-data', 'data'),
-    Input('mach-flt', 'value'),
-    State('mach-state-data', 'data')
-)
-def load_mach_state(mach_val, data):
-    """ Read data of current machine state from server to session. """
-    data = read_machine_state(mach_val, date_stamp)
-    data = data.set_index('time')
-    data = data.to_dict(orient='index')
-    return data
+# Create callbacks for update each machine data.
+def create_refresh_data_callback(df_key_):
+    def refresh_mach_data(clock_val, mach_val):
+        now = time().fromisoformat(clock_val)
+        on_the_hour = (now.minute + now.second) == 0
+        if mach_val or on_the_hour:
+            data = read_machine_df(df_key_, mach_val,
+                                   datetime.combine(today, business_hour['open']),
+                                   datetime.combine(today, business_hour['close']))
+            data = data.to_json()
+            return [data]
+        raise PreventUpdate
+
+    return refresh_mach_data
+
+
+# At interval time.
+for df_key in list(coffee_machine_data):
+    update_mach_data_func = create_refresh_data_callback(df_key)
+    app.callback(
+        output=[Output(f'mach-{df_key}-data', 'data')],
+        inputs=[Input('clock', 'value'), Input('mach-flt', 'value')],
+    )(update_mach_data_func)
 
 
 # Create callbacks for update machine states.
-def create_state_callback(th):
-    def callback(n, clock_val, data):
-        try:
-            daq_val = data[clock_val][th]
-        except (KeyError, TypeError):
-            raise PreventUpdate
-        return [daq_val]
+def create_state_callback(table_head):
+    def callback(n, data, clock_val):
+        if data:
+            df = pd.read_json(data)
+            now = datetime.combine(today, time().fromisoformat(clock_val))
+            daq_val = list(df.loc[df['datetime'] == now, table_head])
+            daq_val = daq_val if daq_val else [0]
+            return daq_val
+        raise PreventUpdate
 
     return callback
 
 
-for html_id, col_name in convert_of_state_daq:
+# At interval time.
+for html_id, col_name in convert_of_state_daq[:]:
     update_machine_state_func = create_state_callback(col_name)
     app.callback(
         output=[Output(html_id, 'value')],
-        inputs=[Input('interval-component', 'n_intervals')],
-        state=[State('clock', 'value'), State('mach-state-data', 'data')]
+        inputs=[Input('interval-component', 'n_intervals'), Input('mach-state-data', 'data')],
+        state=[State('clock', 'value')]
     )(update_machine_state_func)
 
 
-# On change machine filter value.
+# When on the hour or change mach filter value.
 @app.callback(
-    Output('mach-sales-data', 'data'),
-    Input('mach-flt', 'value'),
-    State('mach-sales-data', 'data')
-)
-def load_machine_sales(mach_val, data):
-    """ Read data of current machine's sales from server to session. """
-    data = read_machine_order(mach_val, date_stamp)
-    data = data.to_dict(orient='index')
-    return data
-
-
-@app.callback(
-    [Output('fig-time-flavor', 'figure'),
-     Output('fig-sales-perf', 'figure'),
-     Output('led-today', 'value'), Output('led-espresso', 'value'),
-     Output('led-latte', 'value'), Output('led-cappuccino', 'value')],
-    Input('interval-component', 'n_intervals'),
+    Output('fig-time-flavor', 'figure'), Output('fig-sales-perf', 'figure'),
+    [Output('led-espresso', 'value'), Output('led-latte', 'value'),
+     Output('led-cappuccino', 'value'), Output('led-today', 'value')],
+    Input('mach-order-data', 'data'),
     State('clock', 'value'),
-    State('mach-sales-data', 'data')
 )
-def update_machine_graphs(n, clock_val, data):
-    try:
-        order = pd.DataFrame.from_dict(data, orient='index')
-        clock = time.fromisoformat(clock_val).hour
-        if 9 < clock < 23:
-            data = update_mach_sales_data(order, 9, clock)
-        else:
-            data = create_mach_sales_data()
-    except (ValueError, TypeError) as e:
-        print('Function "update_machine_graphs": ', e)
-        raise PreventUpdate
-
-    # Prepare output data
-    fla = get_flavor_count(data)
-    output = [
-        get_time_flavor_graph(data),
-        get_sales_perf_graph(get_sales_count(data)),
-        sum(fla.values()), fla['Espresso'],
-        fla['Latte'], fla['Cappuccino']
-    ]
-    return output
+def update_machine_sales_info(data, clock_val):
+    if data:
+        now = time().fromisoformat(clock_val)
+        period = (business_hour['open'].hour, now.hour)
+        sales = get_sales_df(pd.read_json(data), period)
+        if sales['amount'].any():
+            # Prepare figures
+            fig_time_flavor = get_time_flavor_graph(sales)
+            fig_sales_perf = get_sales_perf_graph(sales)
+            # Prepare counter values
+            fla_amount = sales.loc[:, ['flavor', 'amount']].groupby(['flavor']).sum()
+            fla_counter = [fla_amount.loc[choice.value][0] for choice in menu.Choices]
+            fla_counter += [sum(fla_counter)]
+            return fig_time_flavor, fig_sales_perf, *fla_counter
+    raise PreventUpdate
 
 
 # At interval time.
@@ -472,4 +488,5 @@ def update_pseudo_time(n):
 
 
 if __name__ == '__main__':
-    app.run_server()
+    print('Launch app server...')
+    app.run_server(debug=True)

@@ -62,7 +62,7 @@ def init_coffee_machine_data():
         # df['datetime'] = pd.to_datetime(df['date'] + ' ' + df['time'])
         # df = df.drop(['date', 'time'], axis=1)
         # result[key] = df
-        connect(table)
+        connect(table, columns='*')
     return result
 
 

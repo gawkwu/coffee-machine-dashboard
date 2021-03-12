@@ -26,7 +26,7 @@ try:
     import plotly.express as px
     # local lib
     from coffeemachine import Menu
-    from connector import SQLiteConnector
+    from connector import SQLiteConnector, connect
 except ImportError as err:
     print(err)
     sys.exit(2)
@@ -54,10 +54,11 @@ def join_paths(paths):
 
 def init_coffee_machine_data():
     result = dict()
-    connector = SQLiteConnector('coffee-machine-data.db')
+    # connector = SQLiteConnector('coffee-machine-data.db')
 
     for key, table in [('order', 'coffee_machine_order'), ('state', 'coffee_machine_state')]:
-        df = connector.read_sql_table(table)
+        # df = connector.read_sql_table(table)
+        df = connect(table)
         df['datetime'] = pd.to_datetime(df['date'] + ' ' + df['time'])
         df = df.drop(['date', 'time'], axis=1)
         result[key] = df

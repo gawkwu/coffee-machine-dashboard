@@ -1,13 +1,13 @@
 import os
-# import sqlite3
+import sqlite3
 import psycopg2
 import pandas as pd
 
 
 APP_PATH = os.path.dirname(os.path.abspath(__file__))
 DATABASE_DIR = os.path.join(APP_PATH, 'data')
-DATABASE_NAME = 'coffee-machine-data.db'
-DATABASE_TABLES = ['coffee_machine_order', 'coffee_machine_state']
+DATABASE_NAME = 'coffeemachine.db'
+DATABASE_TABLES = ['order', 'state']
 
 
 class SQLiteConnector:

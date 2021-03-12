@@ -54,9 +54,9 @@ def join_paths(paths):
 
 def init_coffee_machine_data():
     result = dict()
-    # connector = SQLiteConnector('coffee-machine-data.db')
+    # connector = SQLiteConnector('coffeemachine.db')
 
-    for key, table in [('order', 'coffee_machine_order'), ('state', 'coffee_machine_state')]:
+    for key, table in [('order', 'order'), ('state', 'state')]:
         # df = connector.read_sql_table(table)
         # df = connect(table)
         # df['datetime'] = pd.to_datetime(df['date'] + ' ' + df['time'])

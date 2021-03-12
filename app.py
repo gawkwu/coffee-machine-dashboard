@@ -58,11 +58,11 @@ def init_coffee_machine_data():
 
     for key, table in [('order', 'coffee_machine_order'), ('state', 'coffee_machine_state')]:
         # df = connector.read_sql_table(table)
-        df = connect(table)
-        df['datetime'] = pd.to_datetime(df['date'] + ' ' + df['time'])
-        df = df.drop(['date', 'time'], axis=1)
-        result[key] = df
-
+        # df = connect(table)
+        # df['datetime'] = pd.to_datetime(df['date'] + ' ' + df['time'])
+        # df = df.drop(['date', 'time'], axis=1)
+        # result[key] = df
+        connect(table)
     return result
 
 

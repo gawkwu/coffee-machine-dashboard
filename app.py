@@ -490,4 +490,4 @@ def update_pseudo_time(n):
 
 if __name__ == '__main__':
     print('Launch app server...')
-    app.run_server(debug=True)
+    # app.run_server(debug=True)

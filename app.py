@@ -26,7 +26,7 @@ try:
     import plotly.express as px
     # local lib
     from coffeemachine import Menu
-    from connector import SQLiteConnector, connect
+    from connector import connect
 except ImportError as err:
     print(err)
     sys.exit(2)

@@ -7,7 +7,7 @@ import pandas as pd
 APP_PATH = os.path.dirname(os.path.abspath(__file__))
 DATABASE_DIR = os.path.join(APP_PATH, 'data')
 DATABASE_NAME = 'coffeemachine.db'
-DATABASE_TABLES = ['order', 'state']
+DATABASE_TABLES = ['machine_order', 'machine_state']
 
 
 class SQLiteConnector:

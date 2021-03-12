@@ -36,24 +36,23 @@ DATABASE_TABLES = ['machine_order', 'machine_state']
 
 def connect(table_name, index_col=None, columns=None):
     db_url = os.environ['DATABASE_URL']
-    conn, result = None, None
+    # conn, result = None, None
+    result = None
+    columns = '*' if columns is None else columns
     try:
-        print('Connecting to PostgreSQL database server...')
-        conn = psycopg2.connect(db_url, sslmode='require')
-        cur = conn.cursor()
-        columns = '*' if columns is None else columns
-        query = f'SELECT {columns} FROM {table_name}'
-        cur.execute(query)
-        index_col = cur.fetchone().keys() if index_col is None else index_col
-        result = pd.DataFrame(data=cur.fetchall(), columns=index_col)
-        # print('PostgreSQL database version:')
-        # db_version = cur.fetchone()
-        # print(db_version)
-        cur.close()
+        with psycopg2.connect(db_url, sslmode='require') as conn:
+            # cur = conn.cursor()
+            query = f'SELECT {columns} FROM {table_name}'
+            # sheet = cur.execute(query)
+            result = pd.read_sql_query(query, conn)
+            # result = pd.DataFrame(data=sheet.fetchall(), columns=sheet.keys())
+            # print('PostgreSQL database version:')
+            # db_version = cur.fetchone()
+            # print(db_version)
+            # cur.close()
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
     finally:
         if conn is not None:
             conn.close()
-            print('Database connection closed.')
         return result

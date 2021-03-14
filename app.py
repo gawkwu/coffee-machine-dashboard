@@ -47,8 +47,8 @@ def join_paths(paths):
 def init_coffee_machine_data():
     result = dict()
     for key, table in [('order', 'machine_order'), ('state', 'machine_state')]:
-        # df = connector.read_from_sqlite(table)
-        df = connector.read_from_postgres(table)
+        df = connector.read_from_sqlite(table)
+        # df = connector.read_from_postgres(table)
         df['datetime'] = pd.to_datetime(df['date'] + ' ' + df['time'])
         df = df.drop(['date', 'time'], axis=1)
         result[key] = df
@@ -141,8 +141,8 @@ def build_clock():
     """ Display a pseudo clock, for better understand web's work.
     (Apply in demonstration only) """
     return html.Div([
-        daq.LEDDisplay(id='clock', label='Pseudo Clock', value='00:00:00',
-                       size=32, color='#333333')
+        daq.LEDDisplay(id='clock', value='00:00:00',
+                       size=24, color='#333333')
     ], className='navbar-2')
 
 
@@ -186,6 +186,7 @@ def get_time_flavor_graph(df):
     fig = px.bar(df, x='time_period', y='amount', color='flavor', range_x=[6, 24], range_y=[0, 150],
                  labels={'time_period': 'Time Period', 'amount': 'Amount', 'flavor': 'Flavors'},
                  height=400, template='simple_white')
+    fig.update_layout(legend=dict(xanchor="left", x=0.9, yanchor="top", y=0.99))
     fig.update_xaxes(dtick=3, showgrid=True)
     return fig
 
@@ -238,10 +239,14 @@ daq_dict = {
         daq.GraduatedBar(id='gradbar-current', label='Current', value=0)
     ],
     'led': [
-        daq.LEDDisplay(id='led-today', label='Today', value=0),
-        daq.LEDDisplay(id='led-espresso', label='Espresso', value=0),
-        daq.LEDDisplay(id='led-latte', label='Latte', value=0),
-        daq.LEDDisplay(id='led-cappuccino', label='Cappuccino', value=0)
+        daq.LEDDisplay(id='led-today', label='Today', value=0, size=36,
+                       color='#555555'),
+        daq.LEDDisplay(id='led-espresso', label='Espresso', value=0, size=36,
+                       color='#555555'),
+        daq.LEDDisplay(id='led-latte', label='Latte', value=0, size=36,
+                       color='#555555'),
+        daq.LEDDisplay(id='led-cappuccino', label='Cappuccino', value=0, size=36,
+                       color='#555555')
     ],
     'tank': [
         daq.Tank(id='tank-water', label='Water', min=0, max=1600, value=0,
@@ -294,13 +299,15 @@ app.layout = html.Div([
     # Navigation bar
     html.Div([
         build_filter(),
-        html.Button('Start', id='start-btn'),
-        build_clock()
+        html.Div([html.Button('Start', id='start-btn')], className='navbar-2')
     ], className='navbar'),
 
     # Content
     html.Div([
-        html.H3("Title", id='content-title'),
+        html.Div([
+            html.H3("Title", id='content-title'),
+            build_clock()
+        ], className='dir-row'),
         # Left column, mainly for plots and tables.
         html.Div([
             build_card('Flavor Sales Per Hour', html.Div(dcc_graphs['time_flavor'])),

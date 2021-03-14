@@ -47,8 +47,8 @@ def join_paths(paths):
 def init_coffee_machine_data():
     result = dict()
     for key, table in [('order', 'machine_order'), ('state', 'machine_state')]:
-        df = connector.read_from_sqlite(table)
-        # df = connector.read_from_postgres(table)
+        # df = connector.read_from_sqlite(table)
+        df = connector.read_from_postgres(table)
         df['datetime'] = pd.to_datetime(df['date'] + ' ' + df['time'])
         df = df.drop(['date', 'time'], axis=1)
         result[key] = df

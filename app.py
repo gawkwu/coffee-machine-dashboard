@@ -1,13 +1,5 @@
 # encoding=utf-8
 
-# === Todo list ===
-# Graph: count of consumed supplies
-# Make a flask server, allow others can view the website by  their browser.
-# Make summary page, should be a overview for all machines and products.
-# Make alert tool, to inform user real-time problem.
-# User system, switch user to get different view (products and machines).
-
-
 try:
     # built-in
     from datetime import datetime, date, time
@@ -26,7 +18,7 @@ try:
     import plotly.express as px
     # local lib
     from coffeemachine import Menu
-    from connector import connect
+    import connector
 except ImportError as err:
     print(err)
     sys.exit(2)
@@ -54,10 +46,9 @@ def join_paths(paths):
 
 def init_coffee_machine_data():
     result = dict()
-    # connector = SQLiteConnector('coffeemachine.db')
     for key, table in [('order', 'machine_order'), ('state', 'machine_state')]:
-        # df = connector.read_sql_table(table)
-        df = connect(table)
+        # df = connector.read_from_sqlite(table)
+        df = connector.read_from_postgres(table)
         df['datetime'] = pd.to_datetime(df['date'] + ' ' + df['time'])
         df = df.drop(['date', 'time'], axis=1)
         result[key] = df
@@ -276,8 +267,9 @@ convert_of_state_daq = [
     ('gauge-temp', 'thermometer')
 ]
 
+
 # -------------------------------------------------------------------------------
-# Styles and CSS
+# Web app
 # -------------------------------------------------------------------------------
 external_stylesheets = [
     'https://codepen.io/chriddyp/pen/bWLwgP.css',
@@ -287,11 +279,11 @@ external_stylesheets = [
     },
     '/assets/style.css'
 ]
+meta_tags = [
+    {'name': 'viewport', 'content': 'width=device-width, initial-scale=1.0'}
+]
 
-# -------------------------------------------------------------------------------
-# Web app
-# -------------------------------------------------------------------------------
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets, meta_tags=meta_tags)
 server = app.server
 app.config.suppress_callback_exceptions = True
 
@@ -311,17 +303,17 @@ app.layout = html.Div([
         html.H3("Title", id='content-title'),
         # Left column, mainly for plots and tables.
         html.Div([
+            build_card('Flavor Sales Per Hour', html.Div(dcc_graphs['time_flavor'])),
+            build_card('Sales Performance', html.Div(dcc_graphs['sales_perf']))
+        ], className='left-col'),
+        # Right column, mainly for states, comment, small figure, etc.
+        html.Div([
             build_card(
                 'Counters',
                 html.Div([
                     html.Div(daq_dict['led'], className='led')
                 ])
             ),
-            build_card('Flavor Sales Per Hour', html.Div(dcc_graphs['time_flavor'])),
-            build_card('Sales Performance', html.Div(dcc_graphs['sales_perf']))
-        ], className='left-col'),
-        # Right column, mainly for states, comment, small figure, etc.
-        html.Div([
             build_card('Tanks', html.Div(daq_dict['tank'], className='tank')),
             build_card('Gauges', html.Div(daq_dict['gauge'], className='gauge'))
         ], className='right-col'),
@@ -335,10 +327,6 @@ app.layout = html.Div([
 def is_changed(html_id_):
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     return html_id_ in changed_id
-
-
-def is_on_the_hour(time_):
-    return (time_.minute + time_.second) == 0
 
 
 @app.callback(
@@ -383,9 +371,11 @@ def update_machine_value(prev_btn, next_btn, mach_opt, mach_val):
                   if item['label'] == mach_val), 0)
     if mach_val is None:
         return [mach_opt[0]['label']] * 2
-    if 'mach-prev-btn' in changed_id and index > 0:
+    # if 'mach-prev-btn' in changed_id and index > 0:
+    if is_changed('mach-prev-btn') and index > 0:
         return [mach_opt[index - 1]['label']] * 2
-    elif 'mach-next-btn' in changed_id and index < (len(mach_opt) - 1):
+    # elif 'mach-next-btn' in changed_id and index < (len(mach_opt) - 1):
+    elif is_changed('mach-next-btn') and index < (len(mach_opt) - 1):
         return [mach_opt[index + 1]['label']] * 2
     else:
         return [mach_opt[index]['label']] * 2
@@ -488,4 +478,4 @@ def update_pseudo_time(n):
 
 if __name__ == '__main__':
     print('Launch app server...')
-    # app.run_server(debug=True)
+    app.run_server(debug=True)

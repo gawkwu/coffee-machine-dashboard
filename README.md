@@ -1,4 +1,4 @@
-# coffee-machine-dashboard
+# Coffee Machine Dashboard
 
 ## Introduction
 `coffee-machine-dashboard` 是個用於監控咖啡機台生產狀態的數位儀表板。

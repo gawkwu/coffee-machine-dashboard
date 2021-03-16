@@ -27,7 +27,7 @@ except ImportError as err:
 # Global variables and constants
 # -------------------------------------------------------------------------------
 APP_PATH = os.path.dirname(os.path.abspath(__file__))
-UPDATE_INTERVAL = 1  # sec
+UPDATE_INTERVAL = 2  # sec
 today = date(2021, 1, 1)
 business_hour = {'open': time(9, 0, 0), 'close': time(21, 0, 0)}
 menu = Menu()

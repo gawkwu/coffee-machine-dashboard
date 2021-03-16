@@ -13,6 +13,12 @@
 * [Heroku Application Clould Platform](https://www.heroku.com/home) - Web App 的部屬（Deploy）。
 * [Heroku Postres](https://devcenter.heroku.com/articles/heroku-postgresql) - Database 伺服器，資料存取。
 
+### Other Related Modules
+* [Python.random](https://docs.python.org/3/library/random.html) - Dummy 資料生成
+* [Python.datetime](https://docs.python.org/3/library/datetime.html) - 時間資料處理
+* [Python.os.path](https://docs.python.org/3/library/os.path.html) - 檔案路徑處理
+* [Pandas](https://pandas.pydata.org) - 資料結構與分析
+
 ## How to use this app
 展示連結：[Coffee Machine Dashboard](https://coffee-machine-dashboard.herokuapp.com/)
 

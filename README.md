@@ -21,6 +21,7 @@
 
 ## How to use this app
 展示連結：[Coffee Machine Dashboard](https://coffee-machine-dashboard.herokuapp.com/)
+
 ※ 由於展示用的伺服器使用免費版，一段時間未使用會進入休眠，導致下次開啟需要 1、2分鐘啟動，還請耐心等待。
 
 進入網站後，左上方是顯示內容的篩選選單，分別是選擇「門市」與「機台」。
